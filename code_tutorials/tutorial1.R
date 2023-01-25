@@ -3,10 +3,10 @@
 if (!require("BiocManager", quietly = TRUE)) 
   install.packages("BiocManager")
 
-BiocManager::install("limma")
-BiocManager::install("Glimma")
-BiocManager::install("edgeR", force=TRUE)
-BiocManager::install("Mus.musculus")
+#BiocManager::install("limma")
+#BiocManager::install("Glimma")
+#BiocManager::install("edgeR", force=TRUE)
+#BiocManager::install("Mus.musculus")
 
 library(limma)
 library(Glimma)
