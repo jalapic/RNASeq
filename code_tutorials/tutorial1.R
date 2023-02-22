@@ -376,3 +376,100 @@ glMDSPlot(lcpm, labels=paste(group, lane, sep="_"),
           groups=x$samples[,c(2,5)], launch=TRUE)
 
 
+
+
+### Creating a design matrix and contrasts
+
+
+# design matrix is set up with both the cell population and sequencing lane (batch) information
+design <- model.matrix(~0+group+lane)
+colnames(design) <- gsub("group", "", colnames(design))
+design
+
+#  Contrasts for pairwise comparisons between cell populations are set up in limma using the makeContrasts function.
+
+contr.matrix <- makeContrasts(
+  BasalvsLP = Basal-LP, 
+  BasalvsML = Basal - ML, 
+  LPvsML = LP - ML, 
+  levels = colnames(design))
+contr.matrix
+
+ #  voom-plot provides a visual check on the level of filtering performed upstream. 
+
+par(mfrow=c(1,2))
+v <- voom(x, design, plot=TRUE)
+v
+
+vfit <- lmFit(v, design)
+vfit <- contrasts.fit(vfit, contrasts=contr.matrix)
+efit <- eBayes(vfit)
+plotSA(efit, main="Final model: Mean-variance trend")
+
+# Examining the number of DE genes
+summary(decideTests(efit))
+
+
+#' The treat method (McCarthy and Smyth 2009) can be used to calculate p-values from 
+#' empirical Bayes moderated t-statistics with a minimum log-FC requirement
+
+# log fold change > 1
+tfit <- treat(vfit, lfc=1)
+dt <- decideTests(tfit)
+summary(dt)
+
+#' Genes that are DE in multiple comparisons can be extracted using the results from decideTests, 
+#' where 0s represent genes that are not DE, 1s represent genes that are up-regulated, 
+#' and -1s represent genes that are down-regulated. A total of 2,784 genes are DE in both 
+#' basal versus LP and basal versus ML, twenty of which are listed below. 
+#' 
+#' The write.fit function can be used to extract and write results for all three comparisons
+#'  to a single output file.
+
+de.common <- which(dt[,1]!=0 & dt[,2]!=0)
+length(de.common)
+
+
+head(tfit$genes$SYMBOL[de.common], n=20)
+
+dev.off()
+vennDiagram(dt[,1:2], circle.col=c("turquoise", "salmon"))
+
+
+#' Examining individual DE genes from top to bottom
+#' 
+
+#' The top DE genes can be listed using topTreat for results using treat (or topTable for
+#'  results using eBayes). By default topTreat arranges genes from smallest to largest
+#'   adjusted p-value with associated gene information, log-FC, average log-CPM, moderated 
+#'   t-statistic, raw and adjusted p-value for each gene. The number of top genes displayed
+#'    can be specified, where n=Inf includes all genes. Genes Cldn7 and Rasef are amongst the
+#'     top DE genes for both basal versus LP and basal versus ML.
+#' 
+
+basal.vs.lp <- topTreat(tfit, coef=1, n=Inf)
+basal.vs.ml <- topTreat(tfit, coef=2, n=Inf)
+head(basal.vs.lp)
+head(basal.vs.ml)
+
+
+## Graphical representations
+
+plotMD(tfit, column=1, status=dt[,1], main=colnames(tfit)[1], 
+       xlim=c(-8,13))
+
+
+#' A heatmap is created for the top 100 DE genes (as ranked by adjusted p-value) 
+#' from the basal versus LP contrast using the heatmap.2 function from the gplots package. 
+#' The heatmap correctly clusters samples by cell type and reorders the genes into blocks
+#'  with similar expression patterns. From the heatmap, we observe that the expression of ML
+#'   and LP samples are very similar for the top 100 DE genes between basal and LP.
+
+library(gplots)
+basal.vs.lp.topgenes <- basal.vs.lp$ENTREZID[1:100]
+i <- which(v$genes$ENTREZID %in% basal.vs.lp.topgenes)
+mycol <- colorpanel(1000,"blue","white","red")
+heatmap.2(lcpm[i,], scale="row",
+          labRow=v$genes$SYMBOL[i], labCol=group, 
+          col=mycol, trace="none", density.info="none", 
+          margin=c(8,6), lhei=c(2,10), dendrogram="column")

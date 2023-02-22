@@ -1,5 +1,9 @@
 # total gene counts per sample ========================================
 
+counts <- read_csv("stable_brains/raw_data/NaccCore_counts.csv")
+
+library(tidyverse)
+
 counts %>% 
   summarize_if(is.numeric,sum,na.rm = T) %>% 
   t() %>% 
@@ -7,12 +11,14 @@ counts %>%
   rename(genecounts = V1) %>% 
   rownames_to_column(var = 'sampleID') -> genecounts
 
+library(ggplot2)
+library(ggthemes)
 
 genecounts %>% 
   ggplot(aes(genecounts)) +
   geom_histogram(bins = 40,alpha =0.5,color = 'grey') +
-  scale_x_continuous(breaks = pretty_breaks()) +
-  scale_y_continuous(breaks = pretty_breaks()) +
+  #scale_x_continuous(breaks = pretty_breaks()) +
+  #scale_y_continuous(breaks = pretty_breaks()) +
   theme_base() -> p_genecounts
 
 print(p_genecounts)
